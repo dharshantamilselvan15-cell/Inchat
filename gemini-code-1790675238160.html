@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inchat</title>
+
+    <!-- Firebase Realtime Database SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Courier New', Courier, monospace !important;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 450px;
+            height: 100vh;
+            background-color: #1e293b;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        #splash-screen {
+            position: absolute;
+            inset: 0;
+            background: #0f172a;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+
+        .logo-box {
+            width: 120px;
+            height: 120px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(0.95); }
+        }
+
+        .view {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .active-view {
+            display: flex !important;
+        }
+
+        .title {
+            text-align: center;
+            font-size: 28px;
+            margin-bottom: 40px;
+            color: #38bdf8;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+
+        .btn {
+            background-color: #38bdf8;
+            color: #0f172a;
+            border: none;
+            padding: 14px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            text-align: center;
+        }
+
+        .btn-secondary {
+            background-color: #f472b6;
+            color: #0f172a;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #475569;
+            background-color: #0f172a;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .avatar-preview {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #38bdf8;
+            margin: 10px auto;
+            display: block;
+            cursor: pointer;
+        }
+
+        #chat-screen {
+            padding: 0;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+
+        .chat-header {
+            background-color: rgba(15, 23, 42, 0.95);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #334155;
+            z-index: 10;
+        }
+
+        .header-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #38bdf8;
+        }
+
+        .messages-container {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-bottom: 80px;
+        }
+
+        .message-bubble {
+            max-width: 75%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            word-wrap: break-word;
+            font-size: 14px;
+            position: relative;
+        }
+
+        .sent {
+            align-self: flex-end;
+            background-color: #87CEEB;
+            color: #000;
+            border-bottom-right-radius: 2px;
+        }
+
+        .received {
+            align-self: flex-start;
+            background-color: #FFCBDB;
+            color: #000;
+            border-bottom-left-radius: 2px;
+        }
+
+        .msg-image {
+            max-width: 100%;
+            border-radius: 8px;
+            margin-top: 5px;
+            display: block;
+        }
+
+        .download-btn {
+            display: inline-block;
+            margin-top: 6px;
+            font-size: 11px;
+            color: #000;
+            text-decoration: underline;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .chat-input-bar {
+            background-color: rgba(15, 23, 42, 0.95);
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-top: 1px solid #334155;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            font-size: 22px;
+            cursor: pointer;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 10px 14px;
+            border-radius: 20px;
+            border: 1px solid #334155;
+            background-color: #1e293b;
+            color: #fff;
+            outline: none;
+        }
+
+        .send-btn {
+            background-color: #38bdf8;
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .modal {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 350px;
+            text-align: center;
+        }
+
+        .logout-text {
+            color: #ef4444 !important;
+            font-weight: bold;
+            margin-top: 15px;
+            cursor: pointer;
+            display: inline-block;
+            text-decoration: underline;
+            font-size: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+
+    <div id="splash-screen">
+        <svg class="logo-box" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <rect width="100" height="100" rx="22" fill="#ffffff"/>
+            <defs>
+                <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#00d2ff" />
+                    <stop offset="100%" stop-color="#3a7bd5" />
+                </linearGradient>
+            </defs>
+            <path d="M 50 18 C 32 18 18 32 18 50 C 18 59 22 67 28 73 L 20 85 L 34 81 C 39 83 44 84 50 84 C 68 84 82 70 82 50 C 82 32 68 18 50 18 Z" fill="none" stroke="url(#blueGrad)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+            <polygon points="54,26 38,52 49,52 44,74 64,46 53,46" fill="url(#blueGrad)"/>
+        </svg>
+        <h2 style="color: #fff; margin-top: 15px;">Inchat</h2>
+    </div>
+
+    <div id="main-view" class="view active-view">
+        <h1 class="title">Inchat</h1>
+        <button class="btn" onclick="showView('create-view')">Create Chat Room</button>
+        <button class="btn btn-secondary" onclick="showView('join-view')">Join Chat Room</button>
+    </div>
+
+    <div id="create-view" class="view">
+        <h2 class="title">Create Room</h2>
+        <div class="form-group">
+            <label>Name:</label>
+            <input type="text" id="create-name" placeholder="Enter your name">
+        </div>
+        <div class="form-group">
+            <label>PIN Number (Min 4 digits):</label>
+            <input type="password" id="create-pin" placeholder="Set room PIN">
+        </div>
+        <div class="form-group">
+            <label>Profile Picture:</label>
+            <input type="file" id="create-avatar-input" accept="image/*" style="display:none;" onchange="compressAndPreview(this, 'create-avatar-preview', 200)">
+            <img id="create-avatar-preview" class="avatar-preview" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" onclick="document.getElementById('create-avatar-input').click()">
+        </div>
+        <button class="btn" onclick="handleCreateRoom()">Create</button>
+        <button class="btn" style="background:#475569; color:#fff;" onclick="showView('main-view')">Back</button>
+    </div>
+
+    <div id="join-view" class="view">
+        <h2 class="title">Join Room</h2>
+        <div class="form-group">
+            <label>Name:</label>
+            <input type="text" id="join-name" placeholder="Enter your name">
+        </div>
+        <div class="form-group">
+            <label>PIN Number:</label>
+            <input type="password" id="join-pin" placeholder="Enter room PIN">
+        </div>
+        <div class="form-group">
+            <label>Profile Picture:</label>
+            <input type="file" id="join-avatar-input" accept="image/*" style="display:none;" onchange="compressAndPreview(this, 'join-avatar-preview', 200)">
+            <img id="join-avatar-preview" class="avatar-preview" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" onclick="document.getElementById('join-avatar-input').click()">
+        </div>
+        <button class="btn btn-secondary" onclick="handleJoinRoom()">Join</button>
+        <button class="btn" style="background:#475569; color:#fff;" onclick="showView('main-view')">Back</button>
+    </div>
+
+    <div id="chat-screen" class="view">
+        <div class="chat-header">
+            <div class="header-info">
+                <img id="other-avatar" class="header-avatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png">
+                <div>
+                    <div id="other-name" style="font-weight: bold; font-size: 14px;">Waiting for partner...</div>
+                </div>
+            </div>
+            
+            <img id="my-bottom-avatar" class="header-avatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" onclick="openProfileModal()" style="cursor:pointer;" title="My Profile">
+        </div>
+
+        <div class="messages-container" id="messages-container"></div>
+
+        <div class="chat-input-bar">
+            <button class="icon-btn" onclick="document.getElementById('image-upload-input').click()">📷</button>
+            <input type="file" id="image-upload-input" accept="image/*" style="display:none;" onchange="handleSendImage(this)">
+
+            <input type="text" id="chat-message-input" class="chat-input" placeholder="Message..." onkeypress="handleKeyPress(event)">
+
+            <button class="send-btn" onclick="handleSendText()">Send</button>
+        </div>
+    </div>
+
+    <!-- Profile & Settings Modal -->
+    <div id="profile-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 15px; color:#38bdf8;">Profile Settings</h3>
+            
+            <img id="modal-avatar-preview" class="avatar-preview" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" onclick="document.getElementById('modal-avatar-input').click()">
+            <input type="file" id="modal-avatar-input" accept="image/*" onchange="compressAndPreview(this, 'modal-avatar-preview', 200)" style="display:none;">
+            <p style="font-size: 10px; color:#94a3b8; margin-bottom: 10px;">Click picture to change</p>
+
+            <div class="form-group">
+                <input type="text" id="modal-name-input" placeholder="Your Name">
+            </div>
+
+            <button class="btn btn-secondary" onclick="document.getElementById('wallpaper-input').click()" style="margin: 5px 0 10px 0; font-size: 14px; padding: 10px;">🖼️ Set Wallpaper</button>
+            <input type="file" id="wallpaper-input" accept="image/*" style="display:none;" onchange="handleWallpaperChange(this)">
+
+            <button class="btn" onclick="saveProfileChanges()">Save Changes</button>
+            <button class="btn" style="background:#475569; color:#fff;" onclick="closeProfileModal()">Close</button>
+
+            <div>
+                <span class="logout-text" onclick="handleLogout()">Log Out</span>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyBQda8aESQLvX5s08N6kyGl1S77bDTaVpg",
+        authDomain: "inchat-82438.firebaseapp.com",
+        projectId: "inchat-82438",
+        storageBucket: "inchat-82438.firebasestorage.app",
+        messagingSenderId: "513431423273",
+        appId: "1:513431423273:web:575fe324229d86ce554f38",
+        measurementId: "G-8KK7L8LTG9",
+        databaseURL: "https://inchat-82438-default-rtdb.firebaseio.com"
+    };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let currentUser = {
+        id: localStorage.getItem('inchat_uid') || 'usr_' + Math.random().toString(36).substr(2, 9),
+        name: localStorage.getItem('inchat_name') || '',
+        avatar: localStorage.getItem('inchat_avatar') || 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+        isCreator: false
+    };
+    let currentPin = localStorage.getItem('inchat_room_pin') || null;
+
+    localStorage.setItem('inchat_uid', currentUser.id);
+
+    window.addEventListener('DOMContentLoaded', () => {
+        if (localStorage.getItem('inchat_name')) {
+            document.getElementById('create-name').value = localStorage.getItem('inchat_name');
+            document.getElementById('join-name').value = localStorage.getItem('inchat_name');
+        }
+        if (localStorage.getItem('inchat_avatar')) {
+            document.getElementById('create-avatar-preview').src = localStorage.getItem('inchat_avatar');
+            document.getElementById('join-avatar-preview').src = localStorage.getItem('inchat_avatar');
+        }
+        if (localStorage.getItem('inchat_pin')) {
+            document.getElementById('join-pin').value = localStorage.getItem('inchat_pin');
+        }
+
+        setTimeout(() => {
+            const splash = document.getElementById('splash-screen');
+            splash.style.opacity = '0';
+            setTimeout(() => {
+                splash.style.display = 'none';
+                checkExistingSession();
+            }, 500);
+        }, 2000);
+    });
+
+    function showView(viewId) {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active-view'));
+        document.getElementById(viewId).classList.add('active-view');
+    }
+
+    // Universal Image Compressor & Resizer for Mobile Compatibility
+    function compressAndPreview(input, previewId, maxWidth, callback) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+                    document.getElementById(previewId).src = dataUrl;
+                    
+                    if (callback) callback(dataUrl);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function saveUserLocalStorage() {
+        localStorage.setItem('inchat_name', currentUser.name);
+        localStorage.setItem('inchat_avatar', currentUser.avatar);
+        if (currentPin) localStorage.setItem('inchat_pin', currentPin);
+    }
+
+    function handleCreateRoom() {
+        const name = document.getElementById('create-name').value.trim();
+        const pin = document.getElementById('create-pin').value.trim();
+        const avatarSrc = document.getElementById('create-avatar-preview').src;
+
+        if (!name) return alert('Enter your name');
+        if (!pin || pin.length < 4) return alert('PIN number minimum 4 digits irukanum!');
+
+        db.ref('rooms/' + pin).once('value', (snapshot) => {
+            currentUser.name = name;
+            currentUser.avatar = avatarSrc;
+            currentUser.isCreator = true;
+            currentPin = pin;
+            saveUserLocalStorage();
+
+            const roomData = snapshot.exists() ? snapshot.val() : {
+                pin: pin,
+                creatorId: currentUser.id,
+                wallpaper: '',
+                members: {}
+            };
+
+            roomData.members = roomData.members || {};
+            roomData.members[currentUser.id] = { name: currentUser.name, avatar: currentUser.avatar };
+
+            db.ref('rooms/' + pin).set(roomData, (err) => {
+                if (err) alert('Error: ' + err.message);
+                else enterChatRoom(pin, true);
+            });
+        });
+    }
+
+    function handleJoinRoom() {
+        const name = document.getElementById('join-name').value.trim();
+        const pin = document.getElementById('join-pin').value.trim();
+        const avatarSrc = document.getElementById('join-avatar-preview').src;
+
+        if (!name || !pin) return alert('Name and PIN enter pannunggal!');
+
+        db.ref('rooms/' + pin).once('value', (snapshot) => {
+            currentUser.name = name;
+            currentUser.avatar = avatarSrc;
+            currentPin = pin;
+            saveUserLocalStorage();
+
+            const room = snapshot.exists() ? snapshot.val() : {
+                pin: pin,
+                creatorId: currentUser.id,
+                wallpaper: '',
+                members: {}
+            };
+
+            const members = room.members || {};
+            const keys = Object.keys(members);
+
+            if (keys.length >= 2 && !members[currentUser.id]) {
+                return alert('Chat Room full! Maximum 2 members dhaan.');
+            }
+
+            currentUser.isCreator = (room.creatorId === currentUser.id);
+
+            db.ref(`rooms/${pin}/members/${currentUser.id}`).set({
+                name: currentUser.name,
+                avatar: currentUser.avatar
+            });
+
+            enterChatRoom(pin, currentUser.isCreator);
+        });
+    }
+
+    function enterChatRoom(pin, isCreator) {
+        currentPin = pin;
+        localStorage.setItem('inchat_room_pin', pin);
+        localStorage.setItem('inchat_pin', pin);
+
+        document.getElementById('my-bottom-avatar').src = currentUser.avatar;
+
+        showView('chat-screen');
+
+        db.ref(`rooms/${pin}/members`).on('value', (snapshot) => {
+            const members = snapshot.val() || {};
+            let partnerFound = false;
+            for (let uid in members) {
+                if (uid !== currentUser.id) {
+                    document.getElementById('other-name').innerText = members[uid].name;
+                    document.getElementById('other-avatar').src = members[uid].avatar;
+                    partnerFound = true;
+                }
+            }
+            if (!partnerFound) {
+                document.getElementById('other-name').innerText = 'Waiting for partner...';
+                document.getElementById('other-avatar').src = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+            }
+        });
+
+        db.ref(`rooms/${pin}/wallpaper`).on('value', (snapshot) => {
+            const wp = snapshot.val();
+            document.getElementById('chat-screen').style.backgroundImage = wp ? `url('${wp}')` : 'none';
+        });
+
+        db.ref(`rooms/${pin}/messages`).on('value', (snapshot) => {
+            const container = document.getElementById('messages-container');
+            container.innerHTML = '';
+            const messages = snapshot.val() || {};
+
+            for (let id in messages) {
+                const msg = messages[id];
+                const isMe = msg.senderId === currentUser.id;
+
+                const bubble = document.createElement('div');
+                bubble.className = `message-bubble ${isMe ? 'sent' : 'received'}`;
+
+                if (msg.text) {
+                    const txt = document.createElement('div');
+                    txt.innerText = msg.text;
+                    bubble.appendChild(txt);
+                }
+
+                if (msg.image) {
+                    const img = document.createElement('img');
+                    img.src = msg.image;
+                    img.className = 'msg-image';
+                    bubble.appendChild(img);
+
+                    const dl = document.createElement('a');
+                    dl.className = 'download-btn';
+                    dl.innerText = '⬇ Download Photo';
+                    dl.href = msg.image;
+                    dl.download = 'inchat_photo_' + Date.now() + '.png';
+                    bubble.appendChild(dl);
+                }
+
+                container.appendChild(bubble);
+            }
+            container.scrollTop = container.scrollHeight;
+        });
+    }
+
+    function checkExistingSession() {
+        if (currentPin) {
+            db.ref('rooms/' + currentPin).once('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    const room = snapshot.val();
+                    if (currentUser.name) {
+                        db.ref(`rooms/${currentPin}/members/${currentUser.id}`).set({
+                            name: currentUser.name,
+                            avatar: currentUser.avatar
+                        });
+                        enterChatRoom(currentPin, room.creatorId === currentUser.id);
+                        return;
+                    }
+                }
+                localStorage.removeItem('inchat_room_pin');
+                showView('main-view');
+            });
+        } else showView('main-view');
+    }
+
+    function handleSendText() {
+        const input = document.getElementById('chat-message-input');
+        const txt = input.value.trim();
+        if (!txt || !currentPin) return;
+
+        db.ref(`rooms/${current_pin_safe()}/messages`).push().set({
+            senderId: currentUser.id,
+            text: txt,
+            timestamp: Date.now()
+        });
+        input.value = '';
+    }
+
+    function current_pin_safe() {
+        return currentPin;
+    }
+
+    function handleKeyPress(e) { if (e.key === 'Enter') handleSendText(); }
+
+    function handleSendImage(input) {
+        if (input.files && input.files[0] && currentPin) {
+            compressAndPreview(input, 'temp-preview', 800, function(compressedDataUrl) {
+                db.ref(`rooms/${currentPin}/messages`).push().set({
+                    senderId: currentUser.id,
+                    image: compressedDataUrl,
+                    timestamp: Date.now()
+                });
+            });
+        }
+    }
+
+    function handleWallpaperChange(input) {
+        if (input.files && input.files[0] && currentPin) {
+            compressAndPreview(input, 'temp-preview', 900, function(compressedDataUrl) {
+                db.ref(`rooms/${currentPin}/wallpaper`).set(compressedDataUrl);
+                alert('Wallpaper updated successfully!');
+            });
+        }
+    }
+
+    function openProfileModal() {
+        document.getElementById('modal-name-input').value = currentUser.name;
+        document.getElementById('modal-avatar-preview').src = currentUser.avatar;
+        document.getElementById('profile-modal').style.display = 'flex';
+    }
+
+    function closeProfileModal() { document.getElementById('profile-modal').style.display = 'none'; }
+
+    function saveProfileChanges() {
+        const newName = document.getElementById('modal-name-input').value.trim();
+        if (newName) currentUser.name = newName;
+        currentUser.avatar = document.getElementById('modal-avatar-preview').src;
+
+        document.getElementById('my-bottom-avatar').src = currentUser.avatar;
+        saveUserLocalStorage();
+
+        if (currentPin) {
+            db.ref(`rooms/${currentPin}/members/${currentUser.id}`).update({
+                name: currentUser.name,
+                avatar: currentUser.avatar
+            });
+        }
+        closeProfileModal();
+    }
+
+    function handleLogout() {
+        if (confirm("Log out panna virumbugireergala?")) {
+            closeProfileModal();
+            if (currentPin) {
+                db.ref(`rooms/${currentPin}/messages`).off();
+                db.ref(`rooms/${currentPin}/members`).off();
+                db.ref(`rooms/${currentPin}/wallpaper`).off();
+            }
+            currentPin = null;
+            localStorage.removeItem('inchat_room_pin');
+            showView('main-view');
+        }
+    }
+</script>
+<!-- Hidden dummy preview for image processing -->
+<img id="temp-preview" style="display:none;">
+</body>
+</html>
